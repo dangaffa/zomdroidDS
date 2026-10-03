@@ -8,6 +8,7 @@ import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.SurfaceHolder;
@@ -23,6 +24,10 @@ import com.zomdroid.GameLauncher;
  * Dual-screen mode: shows a {@link Presentation} with a full-size {@link SurfaceView} on the
  * secondary (bottom) display and hands its surface to native code, which presents part of the
  * game frame there. Does nothing on devices without a presentation display.
+ *
+ * <p>The game renders one wide canvas: the top screen, plus the bottom screen to its right scaled
+ * to the top screen's height ({@link #extraCanvasWidth}). The game view is widened past the right
+ * edge of the top display, where it is clipped, and native code copies that strip to the bottom.
  */
 public class BottomScreen {
     private static final String LOG_TAG = "ZomdroidDS";
@@ -71,6 +76,19 @@ public class BottomScreen {
     public void stop() {
         displayManager.unregisterDisplayListener(displayListener);
         dismiss();
+    }
+
+    /**
+     * How many pixels wider than the top screen the game canvas should be: the bottom display's
+     * width scaled to {@code topHeight}, or 0 if there is no bottom display.
+     */
+    public int extraCanvasWidth(int topHeight) {
+        Display display = findDisplay();
+        if (display == null) return 0;
+        DisplayMetrics metrics = new DisplayMetrics();
+        display.getRealMetrics(metrics); // in the display's current rotation
+        if (metrics.heightPixels <= 0) return 0;
+        return Math.round((float) metrics.widthPixels * topHeight / metrics.heightPixels);
     }
 
     private Display findDisplay() {

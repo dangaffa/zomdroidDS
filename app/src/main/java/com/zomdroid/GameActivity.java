@@ -242,6 +242,17 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
         if (!serverProbeClient && BottomScreen.isEnabled(this)) {
             bottomScreen = new BottomScreen(this);
             bottomScreen.start();
+            // Widen the game view past the right edge of this screen by the bottom screen's width;
+            // native code shows that strip on the bottom display.
+            int topHeight = getWindowManager().getCurrentWindowMetrics().getBounds().height();
+            int extra = bottomScreen.extraCanvasWidth(topHeight);
+            if (extra > 0) {
+                android.widget.FrameLayout.LayoutParams lp =
+                        (android.widget.FrameLayout.LayoutParams) binding.gameSv.getLayoutParams();
+                lp.rightMargin = -extra;
+                binding.gameSv.setLayoutParams(lp);
+                Log.i(LOG_TAG, "Dual screen: game canvas widened by " + extra + "px");
+            }
         }
 
         binding.gameSv.getHolder().addCallback(new SurfaceHolder.Callback() {

@@ -41,14 +41,14 @@ adb shell dumpsys SurfaceFlinger --display-id
 
 Recorded on the user's Thor Max (2026-10-03). Both panels are natively portrait and run rotated to landscape (`orientation=1`). The bottom panel also offers a 120 Hz mode, but it defaults to 60 Hz.
 
-## Architecture: the tall virtual canvas
+## Architecture: the wide virtual canvas
 
-The game only knows one window. We tell it that window is both screens stacked, then split the output.
+The game only knows one window. We tell it that window is both screens **side by side**, then split the output. The canvas is the top screen's width plus the bottom screen's width scaled to the top screen's height: 1920 + 1240 = 3160 x 1080 on the Thor, at render scale 1. Side by side, not stacked: the world keeps a 16:9 region of its own (the left part, shown on the top screen), the strip on the right is for menus, and any dual-screen device whose second screen is about as tall as the first (Retroid Pocket Duo and so on) fits the same scheme. Decided with the user on 2026-10-03; it replaced the original "tall canvas" plan.
 
-1. **Native layer** (`app/src/main/cpp/glfw`, a submodule pointing at our fork of `zomdroid-glfw`). The game renders into an offscreen framebuffer sized roughly 1920x2160. At each buffer swap we copy the top 1920x1080 region to the top display's surface and the bottom region (1240x1080) to a second surface on the bottom display. The second `ANativeWindow` comes from the Android side.
-2. **Android layer** (`app/src/main/java/com/zomdroid`). `GameActivity` finds the secondary display via `DisplayManager`, shows a `android.app.Presentation` on it containing a `SurfaceView`, and hands that surface to native code alongside the existing one. Touches on the bottom screen become mouse input with y offset by 1080 (or whatever the top region's height is).
-3. **Java mod via ZombieBuddy** (`mod/DieSurviving/.../media/java`). ByteBuddy `@Patch` classes that restrict player 0's camera (`zombie.iso.IsoCamera` screen/offscreen region methods) to the top region, fix the UI projection to cover the full canvas, and stop the mouse from being clamped to the top region.
-4. **Lua mod** (`mod/DieSurviving/.../media/lua`). Catches windows as they're created (`ISCollapsableWindow`, `ISPanel`, and so on, hooked at `addToUIManager` or construction) and places them in the bottom region by default. Keeps an exclusion list for things that must stay on top: HUD, tooltips, on-world overlays, the main menu. Context menus (`ISContextMenu`) are an open design question; decide during testing.
+1. **Android layer** (`app/src/main/java/com/zomdroid`). `dualscreen/BottomScreen` finds the secondary display via `DisplayManager`, shows a `Presentation` on it containing a `SurfaceView`, and hands that surface to native code (`GameLauncher.setBottomSurface`). `GameActivity` widens the game `SurfaceView` past the right edge of the top display with a negative right margin (`BottomScreen.extraCanvasWidth`); the part past the edge is clipped by the window, but the game renders it. Touches on the bottom screen will become mouse input with x offset by the top region's width.
+2. **Native layer** (`app/src/main/cpp/glfw`, a submodule pointing at our fork of `zomdroid-glfw`). At each frame the rightmost strip of the canvas (bottom display's aspect ratio, full canvas height) is read back and pushed to the bottom window (`src/zomdroid_dualscreen.c`). The bottom window's buffers are sized to the strip, so the compositor scales it to the display, render scale included.
+3. **Java mod via ZombieBuddy** (`mod/DieSurviving/.../media/java`). ByteBuddy `@Patch` classes that restrict player 0's camera (`zombie.iso.IsoCamera` screen/offscreen region methods) to the left (top-screen) region and keep the mouse and UI working across the whole canvas.
+4. **Lua mod** (`mod/DieSurviving/.../media/lua`). Catches windows as they're created (`ISCollapsableWindow`, `ISPanel`, and so on, hooked at `addToUIManager` or construction) and places them in the right (bottom-screen) region by default. Keeps an exclusion list for things that must stay on top: HUD, tooltips, on-world overlays, the main menu. Context menus (`ISContextMenu`) are an open design question; decide during testing.
 
 ### Renderer paths
 
@@ -150,16 +150,17 @@ Decompiled game code never gets committed or pushed.
 
 ## Milestones
 
-Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom mirror|solid|off` (read when the bottom surface is created, so relaunch after changing it). The native side logs `<fps> fps, bottom screen <ms> ms/frame on render thread` every 10 s under the `ZomdroidDS` tag. Disable dual-screen entirely with the shared pref `dual_screen_enabled=false` (`BottomScreen.PREF_ENABLED`).
+Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|solid|off` (read when the bottom surface is created, so relaunch after changing it). The native side logs `<fps> fps, bottom screen <ms> ms/frame on render thread` every 10 s under the `ZomdroidDS` tag. Disable dual-screen entirely with the shared pref `dual_screen_enabled=false` (`BottomScreen.PREF_ENABLED`).
 
 0. **Plumbing.** Separate debug app ID; debug auto-launch; record display IDs and the primary renderer in this file; scripts for build, install, logs, screenshots, mod push.
    - Done (2026-10-03): `.ds` app ID, `DebugLaunchActivity` (verified launching "Project Zomboid"), display IDs, renderer (ZINK_ZFA), `tools/ds/` scripts. Left: `push_mod.sh` (comes with the mod).
 1. **Proof of concept.** Any image on the bottom screen from the native layer — a solid color, then a mirrored strip of the game frame.
    - Done (2026-10-03) on ZFA: `dualscreen/BottomScreen.java` (Presentation + SurfaceView on display 4, `FLAG_NOT_FOCUSABLE`), `GameLauncher.setBottomSurface`, `g_zomdroid_bottom_surface`, `zomdroid_dualscreen.c`. Solid and mirror both verified by screenshot. Main menu: 60 fps with mirror on or off; 0.4-0.9 ms/frame on the render thread. Not yet checked: in-game FPS, gamepad focus with the Presentation up, turning the bottom screen off mid-game. An untested EGL (NG_GL4ES) version of the bottom present lives in `../zomboidDS/notes/egl-bottom-screen-untested.patch` for milestone 6.
-2. **Tall canvas.** Game sees the stacked size; top region on top screen, bottom region on bottom screen, at playable FPS.
-3. **World on top only.** ZombieBuddy patch confines the camera to the top region; bottom region is clear for UI.
-4. **Bottom-screen input.** Touches on the bottom screen act as mouse input at the right canvas coordinates; dragging items in the inventory works.
-5. **Menus on the bottom by default.** Lua layout manager with the exclusion list; decide how context menus behave.
+2. **Wide canvas.** Game sees the side-by-side size; left region on top screen, right strip on bottom screen, at playable FPS.
+   - Done (2026-10-03). Main menu at 3160-wide canvas: right-anchored menu buttons land on the bottom screen, ~60 fps, 0.5-0.8 ms/frame on the render thread. Milestone 1 in-game test (mirror mode, user's session): 49-60 fps, ~0.5 ms/frame; gamepad still controls the game with the Presentation up.
+3. **World on top only.** ZombieBuddy patch confines the camera to the left region; the right strip is clear for UI.
+4. **Bottom-screen input.** Touches on the bottom screen act as mouse input at the right canvas coordinates (x + top region width); dragging items in the inventory works.
+5. **Menus on the bottom by default.** Lua layout manager (places windows in the right strip) with the exclusion list; decide how context menus behave.
 6. **Polish.** In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
 
 Update this list as milestones land, and add notes on anything learned the hard way to "Gotchas" below.

@@ -18,3 +18,5 @@ local.properties
 
 # Working notes, kept out of the repo on purpose
 /TODO.md
+/mod/DieSurviving/java/build/
+/mod/DieSurviving/42/media/java/*.jar

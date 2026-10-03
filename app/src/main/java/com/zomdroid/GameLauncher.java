@@ -14,6 +14,13 @@ import java.io.File;
 import java.util.ArrayList;
 
 public class GameLauncher {
+    /**
+     * Dual screen: share of the canvas width that belongs to the world (top screen), or 0 when the
+     * game runs on one screen. Set by GameActivity before launch; passed to the DieSurviving mod
+     * as -Dzomdroid.ds.worldFraction.
+     */
+    public static volatile float dualScreenWorldFraction = 0f;
+
     public static void launch(GameInstance gameInstance) throws ErrnoException {
         launch(gameInstance, false);
     }
@@ -393,6 +400,10 @@ public class GameLauncher {
         // Prefer JRE21 when using GL4ES-style renderers (Build 41 tends to rely on that path).
         // This isolates "old GL4ES pipeline" from "new Java 25 runtime" regressions.
         boolean preferJre21ForRenderer = isLegacyRendererNeedingJre21(settings.getRenderer());
+        if (dualScreenWorldFraction > 0f && dualScreenWorldFraction < 1f) {
+            jvmArgs.add("-Dzomdroid.ds.worldFraction=" + dualScreenWorldFraction);
+        }
+
         // ZombieBuddy agent — loaded if jar present in game folder AND enabled in settings
         android.content.SharedPreferences zbPrefs = LauncherPreferences.requireSingleton().getSharedPrefs();
 

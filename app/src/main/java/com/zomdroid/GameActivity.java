@@ -239,13 +239,18 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
 
         FMOD.init(this);
 
+        GameLauncher.dualScreenWorldFraction = 0f;
         if (!serverProbeClient && BottomScreen.isEnabled(this)) {
             bottomScreen = new BottomScreen(this);
-            bottomScreen.start();
             // Widen the game view past the right edge of this screen by the bottom screen's width;
             // native code shows that strip on the bottom display.
-            int topHeight = getWindowManager().getCurrentWindowMetrics().getBounds().height();
-            int extra = bottomScreen.extraCanvasWidth(topHeight);
+            android.graphics.Rect topBounds = getWindowManager().getCurrentWindowMetrics().getBounds();
+            int extra = bottomScreen.extraCanvasWidth(topBounds.height());
+            bottomScreen.setCanvasGeometry(topBounds.width(), extra, topBounds.height(),
+                    instanceSettings.getRenderScale());
+            bottomScreen.start();
+            GameLauncher.dualScreenWorldFraction = extra > 0
+                    ? (float) topBounds.width() / (topBounds.width() + extra) : 0f;
             if (extra > 0) {
                 android.widget.FrameLayout.LayoutParams lp =
                         (android.widget.FrameLayout.LayoutParams) binding.gameSv.getLayoutParams();

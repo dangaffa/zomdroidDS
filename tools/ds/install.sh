@@ -4,4 +4,4 @@ set -e
 source "$(dirname "$0")/env.sh"
 apk=$(ls -t "$REPO_DIR"/app/build/outputs/apk/debug/*.apk | head -1)
 echo "Installing $apk"
-"$ADB" install -r "$apk"
+"$ADB" install -r "$(cygpath -w "$apk")"

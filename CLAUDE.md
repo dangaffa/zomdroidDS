@@ -60,7 +60,7 @@ The GLFW fork has three separate present paths, all of which need the split even
 
 **Pick one renderer first** (whichever runs B42 best on the Thor — check with the user) and get it fully working before touching the others. Record the choice here:
 
-- Primary renderer: `ZINK_ZFA` (the installer's "Build 42 (quality)" preset on Adreno; Mesa Zink on Turnip, present path `zfa_context.c`). Chosen with the user on 2026-10-03 over NG_GL4ES. The instance "Project Zomboid" runs at render scale 0.65, so the main framebuffer is about 1248x702, not 1920x1080.
+- Primary renderer: `ZINK_ZFA` (the installer's "Build 42 (quality)" preset on Adreno; Mesa Zink on Turnip, present path `zfa_context.c`). Chosen with the user on 2026-10-03 over NG_GL4ES. The instance "Project Zomboid" runs at render scale 0.6, so with the wide canvas the game window is 1896x648 (world region 1152x648), not 3160x1080.
 
 ## Key code locations
 
@@ -98,7 +98,9 @@ Helper scripts live in `tools/ds/` (run with Git Bash; settings in `env.sh`):
 | `logs.sh clear` / `logs.sh` | clear logcat / dump filtered logcat to `zomboidDS/logs/logcat.txt`, plus the app's `files/log.txt` and `lastlog.txt` |
 | `console.sh` | copy each instance's `Zomboid/console.txt` to `zomboidDS/logs/` |
 | `shots.sh [label]` | screenshot both screens to `zomboidDS/shots/<label>-top.png`, `-bottom.png` |
-| `tap.sh top/bottom X Y` | tap a screen |
+| `tap.sh top/bottom X Y` | tap a screen (held 150 ms; a plain `input tap` is shorter than a game frame and gets lost) |
+| `build_mod.sh` | compile `mod/DieSurviving` with JDK 25 into `42/media/java/DieSurviving.jar` |
+| `push_mod.sh` | copy `mod/DieSurviving` into the instance's `Zomboid/mods` |
 
 Raw equivalents:
 
@@ -143,6 +145,10 @@ Decompiled game code never gets committed or pushed.
 
 ## Mod packaging
 
+The mod lives in `mod/DieSurviving` (`42/mod.info`, `common/`, Java sources in `java/src`). It is built with plain `javac`/`jar` from `tools/ds/build_mod.sh` against the game jar from `../zomboidDS/support/depots/...` and the ZombieBuddy jar built from `../zomboidDS/support/ZombieBuddy-master` (JDK 25 and Gradle 9.3.1 live in `../zomboidDS/tools`). The built jar is gitignored.
+
+ZombieBuddy 3.0.0-beta1 is installed on the instance from `../zomboidDS/tools/ZombieBuddy-3.0.0-beta1.zip` (built from that source, Workshop layout) through the launcher's Optimization screen. Both mods are enabled in `Zomboid/mods/default.txt` and in the save's `mods.txt` (originals kept as `*.bak-ds`).
+
 - ZombieBuddy mod structure follows https://github.com/zed-0xff/ZBHelloWorld (`mod.info` with `require=\ZombieBuddy`, `javaJarFile=...`, `@Patch` classes discovered from `javaPkgName`).
 - Build the mod's Java jar against the game classes as `compileOnly`.
 - Push the mod into the instance's `mods` folder with `adb push` to `/data/local/tmp` and then `run-as ... cp`. Script this as `tools/ds/push_mod.sh` once it works.
@@ -159,7 +165,9 @@ Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|so
 2. **Wide canvas.** Game sees the side-by-side size; left region on top screen, right strip on bottom screen, at playable FPS.
    - Done (2026-10-03). Main menu at 3160-wide canvas: right-anchored menu buttons land on the bottom screen, ~60 fps, 0.5-0.8 ms/frame on the render thread. Milestone 1 in-game test (mirror mode, user's session): 49-60 fps, ~0.5 ms/frame; gamepad still controls the game with the Presentation up.
 3. **World on top only.** ZombieBuddy patch confines the camera to the left region; the right strip is clear for UI.
+   - Done (2026-10-03). Launcher passes `-Dzomdroid.ds.worldFraction=<top width / canvas width>`; DieSurviving patches `IsoCamera.getScreenWidth`, `Core.getOffscreenWidth`, and makes `Core.getScreenWidth` report the world width only inside `Core.DoStartFrameStuffInternal` / `DoStartFrameNoZoom` for a player (thread-local flag, since PZ queues draw commands on one thread and runs them on another). In game: world viewport 1152x648 on a 1896x648 canvas, right strip has no world, UI anchored to the right edge (speed controls, clock) lands on the bottom screen. 58-60 fps.
 4. **Bottom-screen input.** Touches on the bottom screen act as mouse input at the right canvas coordinates (x + top region width); dragging items in the inventory works.
+   - Started (2026-10-03): `dualscreen/BottomTouchInput` maps one finger to the left mouse button at the right canvas position. Verified by clicking through spawn selection, occupation and character creation buttons on the bottom screen. Not yet: drag-and-drop, right click / long press, hiding the gesture pill.
 5. **Menus on the bottom by default.** Lua layout manager (places windows in the right strip) with the exclusion list; decide how context menus behave.
 6. **Polish.** In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
 
@@ -184,3 +192,8 @@ Update this list as milestones land, and add notes on anything learned the hard 
 - `ANativeWindow_lock` on the bottom window blocks until the bottom display releases a buffer (up to a 60 Hz vsync, measured at 13-15 ms/frame). Never lock it on the render thread; `zomdroid_dualscreen.c` does it on its own worker thread.
 - `glReadPixels` reports `GL_INVALID_OPERATION` (0x501) once during startup on ZFA, then never again. Harmless so far; probably the first frames before the real window is attached.
 - The gesture-navigation pill shows on the bottom screen over the Presentation. Hide it when the bottom screen starts taking input (milestone 4).
+- ZombieBuddy only applies `@Patch` classes declared **directly** in `javaPkgName`, not in subpackages ("no patches to apply" in the log otherwise).
+- Git Bash rewrites `/device/paths` passed to `adb.exe` into Windows paths (`C:/Program Files/Git/...`), silently. `tools/ds/env.sh` exports `MSYS_NO_PATHCONV=1`; local paths handed to `adb` then need `cygpath -w`, and `build_mod.sh` unsets it again because `javac` needs the translation.
+- The game classes are Java 25 class files: compiling against them needs JDK 25, not the JDK 17 used for the app.
+- "Continue" on the main menu goes to spawn selection when the save's character is dead (`players.db` → `localPlayers.isDead`). That is the game, not us.
+- The game runs in debug mode on this instance (Output Log / Lua console on screen); that is a Zomdroid setting, not ours.

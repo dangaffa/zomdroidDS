@@ -1,0 +1,7 @@
+name=Die Surviving
+id=DieSurviving
+description=Dual-screen layout for Zomdroid on dual-screen handhelds: the world on the top screen, menus on the bottom.
+author=Zomdroid DS
+require=\ZombieBuddy
+javaJarFile=media/java/DieSurviving.jar
+javaPkgName=com.zomdroid.diesurviving

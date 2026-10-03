@@ -38,6 +38,7 @@ public class BottomScreen {
     private final DisplayManager displayManager;
     private Presentation presentation;
     private int displayId = Display.INVALID_DISPLAY;
+    private BottomTouchInput touchInput;
 
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override
@@ -66,6 +67,14 @@ public class BottomScreen {
     public static boolean isEnabled(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(C.shprefs.NAME, Context.MODE_PRIVATE);
         return prefs.getBoolean(PREF_ENABLED, true);
+    }
+
+    /**
+     * Where the bottom strip sits in the game view, so bottom-screen touches land on the right
+     * canvas pixels. Call before {@link #start()}.
+     */
+    public void setCanvasGeometry(int left, int width, int height, float renderScale) {
+        touchInput = new BottomTouchInput(left, width, height, renderScale);
     }
 
     public void start() {
@@ -106,7 +115,7 @@ public class BottomScreen {
         }
         displayId = display.getDisplayId();
         Log.i(LOG_TAG, "Showing bottom screen on display " + displayId);
-        presentation = new BottomPresentation(activity, display);
+        presentation = new BottomPresentation(activity, display, touchInput);
         presentation.setOnDismissListener(d -> {
             if (presentation == d) {
                 presentation = null;
@@ -132,8 +141,11 @@ public class BottomScreen {
     }
 
     private static class BottomPresentation extends Presentation {
-        BottomPresentation(Context outerContext, Display display) {
+        private final BottomTouchInput touchInput;
+
+        BottomPresentation(Context outerContext, Display display, BottomTouchInput touchInput) {
             super(outerContext, display);
+            this.touchInput = touchInput;
         }
 
         @Override
@@ -160,6 +172,7 @@ public class BottomScreen {
                     GameLauncher.destroyBottomSurface();
                 }
             });
+            if (touchInput != null) surfaceView.setOnTouchListener(touchInput);
             setContentView(surfaceView);
         }
     }

@@ -93,6 +93,18 @@ Java_com_zomdroid_GameLauncher_setSurface(JNIEnv *env, jobject clazz, jobject su
     return 1;
 }
 
+JNIEXPORT jint JNICALL
+Java_com_zomdroid_GameLauncher_setBottomSurface(JNIEnv *env, jclass clazz, jobject surface, jint width, jint height) {
+    ANativeWindow* wnd = ANativeWindow_fromSurface(env, surface);
+    zomdroid_bottom_surface_init(wnd, width, height);
+    return 1;
+}
+
+JNIEXPORT void JNICALL
+Java_com_zomdroid_GameLauncher_destroyBottomSurface(JNIEnv *env, jclass clazz) {
+    zomdroid_bottom_surface_deinit();
+}
+
 JNIEXPORT void JNICALL
 Java_com_zomdroid_input_InputNativeInterface_sendKeyboard(JNIEnv *env, jclass clazz, jint key,
                                                           jboolean is_pressed) {

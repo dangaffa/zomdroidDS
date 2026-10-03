@@ -457,6 +457,8 @@ public class GameLauncher {
     public static native void destroyZomdroidWindow();
     public static native int setSurface(Surface surface, int width, int height);
     public static native void destroySurface();
+    public static native int setBottomSurface(Surface surface, int width, int height);
+    public static native void destroyBottomSurface();
     /** Frames the game has presented so far (glfwSwapBuffers), for the in-game FPS display. */
     public static native long getPresentedFrameCount();
     static native void startGame(String gameDirPath, String libraryDirPath, String[] jvmArgs, String mainClassName, String[] args);

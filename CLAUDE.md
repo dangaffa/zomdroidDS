@@ -55,12 +55,12 @@ The game only knows one window. We tell it that window is both screens stacked, 
 The GLFW fork has three separate present paths, all of which need the split eventually:
 
 - `src/egl_context.c`: EGL (GL4ES renderers). Swap is in `swapBuffersEGL`; surface recreation uses `g_zomdroid_surface`.
-- `src/zfa_context.c`: ZFA (Zink, ZINK_ZFA).
+- `src/zfa_context.c`: ZFA (Zink, ZINK_ZFA). `libzfa.so` is a separate Mesa build (not in these repos) that presents to exactly one `ANativeWindow` itself. **This is the path we use.** The bottom screen is fed by GL read-back in `src/zomdroid_dualscreen.c`: `glReadPixels` into a PBO before the frame's `glFinish()`, map and copy into a CPU staging slot after it, and a worker thread pushes the newest slot to the bottom window with `ANativeWindow_lock`.
 - `src/osmesa_context.c`: OSMesa (Zink, ZINK_OSMESA). Software buffer locked via `ANativeWindow_lock`, so the bottom copy is a plain memory copy.
 
 **Pick one renderer first** (whichever runs B42 best on the Thor — check with the user) and get it fully working before touching the others. Record the choice here:
 
-- Primary renderer: `NG_GL4ES` (upstream's supported B42 route; EGL path in `egl_context.c`)
+- Primary renderer: `ZINK_ZFA` (the installer's "Build 42 (quality)" preset on Adreno; Mesa Zink on Turnip, present path `zfa_context.c`). Chosen with the user on 2026-10-03 over NG_GL4ES. The instance "Project Zomboid" runs at render scale 0.65, so the main framebuffer is about 1248x702, not 1920x1080.
 
 ## Key code locations
 
@@ -150,9 +150,12 @@ Decompiled game code never gets committed or pushed.
 
 ## Milestones
 
+Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom mirror|solid|off` (read when the bottom surface is created, so relaunch after changing it). The native side logs `<fps> fps, bottom screen <ms> ms/frame on render thread` every 10 s under the `ZomdroidDS` tag. Disable dual-screen entirely with the shared pref `dual_screen_enabled=false` (`BottomScreen.PREF_ENABLED`).
+
 0. **Plumbing.** Separate debug app ID; debug auto-launch; record display IDs and the primary renderer in this file; scripts for build, install, logs, screenshots, mod push.
-   - Done (2026-10-03): `.ds` app ID, `DebugLaunchActivity`, display IDs, renderer (NG_GL4ES), `tools/ds/` scripts. Left: `push_mod.sh` (comes with the mod); checking that `DebugLaunchActivity` launches a real instance once B42 is installed into `com.zomdroid.ds`.
+   - Done (2026-10-03): `.ds` app ID, `DebugLaunchActivity` (verified launching "Project Zomboid"), display IDs, renderer (ZINK_ZFA), `tools/ds/` scripts. Left: `push_mod.sh` (comes with the mod).
 1. **Proof of concept.** Any image on the bottom screen from the native layer — a solid color, then a mirrored strip of the game frame.
+   - Done (2026-10-03) on ZFA: `dualscreen/BottomScreen.java` (Presentation + SurfaceView on display 4, `FLAG_NOT_FOCUSABLE`), `GameLauncher.setBottomSurface`, `g_zomdroid_bottom_surface`, `zomdroid_dualscreen.c`. Solid and mirror both verified by screenshot. Main menu: 60 fps with mirror on or off; 0.4-0.9 ms/frame on the render thread. Not yet checked: in-game FPS, gamepad focus with the Presentation up, turning the bottom screen off mid-game. An untested EGL (NG_GL4ES) version of the bottom present lives in `../zomboidDS/notes/egl-bottom-screen-untested.patch` for milestone 6.
 2. **Tall canvas.** Game sees the stacked size; top region on top screen, bottom region on bottom screen, at playable FPS.
 3. **World on top only.** ZombieBuddy patch confines the camera to the top region; bottom region is clear for UI.
 4. **Bottom-screen input.** Touches on the bottom screen act as mouse input at the right canvas coordinates; dragging items in the inventory works.
@@ -176,3 +179,7 @@ Update this list as milestones land, and add notes on anything learned the hard 
 - `GameActivity` is locked to `sensorLandscape` with `configChanges` set so the GL surface isn't torn down on rotation. Keep it that way.
 - The app's `CrashHandler` runs `logcat -c` when the process starts. That wipes the app's own earliest log lines from logcat, so `Application`/first-activity logs usually never show up there. The app streams its logcat into `files/log.txt`; the previous session is in `files/lastlog.txt`. `tools/ds/logs.sh` pulls both. Read those, not just logcat.
 - `local.properties` needs forward slashes (`sdk.dir=C:/Users/...`). Single backslashes are read as escapes, which breaks NDK lookup with "filename, directory name, or volume label syntax is incorrect".
+- The instance's renderer is per-instance (`inst:<name>:renderer` in `shared_prefs`), and overrides the launcher-wide one. Check the `Renderer:` line in `files/log.txt` instead of assuming.
+- `ANativeWindow_lock` on the bottom window blocks until the bottom display releases a buffer (up to a 60 Hz vsync, measured at 13-15 ms/frame). Never lock it on the render thread; `zomdroid_dualscreen.c` does it on its own worker thread.
+- `glReadPixels` reports `GL_INVALID_OPERATION` (0x501) once during startup on ZFA, then never again. Harmless so far; probably the first frames before the real window is attached.
+- The gesture-navigation pill shows on the bottom screen over the Presentation. Hide it when the bottom screen starts taking input (milestone 4).

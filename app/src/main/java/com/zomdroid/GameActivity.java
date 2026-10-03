@@ -25,6 +25,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.zomdroid.dualscreen.BottomScreen;
 import com.zomdroid.input.GLFWBinding;
 import com.zomdroid.input.GamepadManager;
 import com.zomdroid.input.InputNativeInterface;
@@ -62,6 +63,8 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
     private static final String LOG_TAG = GameActivity.class.getName();
 
     private ActivityGameBinding binding;
+    /** Dual-screen mode: the game's second surface on the bottom display, or null. */
+    private BottomScreen bottomScreen;
     private Surface gameSurface;
     private static boolean isGameStarted = false;
     static boolean hasGameJvm() { return isGameStarted; }
@@ -235,6 +238,11 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
         System.load(AppStorage.requireSingleton().getHomePath() + "/" + gameInstance.getFmodLibraryPath() + "/libfmodstudio.so");
 
         FMOD.init(this);
+
+        if (!serverProbeClient && BottomScreen.isEnabled(this)) {
+            bottomScreen = new BottomScreen(this);
+            bottomScreen.start();
+        }
 
         binding.gameSv.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -472,6 +480,7 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
 
     @Override
     protected void onDestroy() {
+      if (bottomScreen != null) { bottomScreen.stop(); bottomScreen = null; }
       super.onDestroy();
       if (perfThread != null) { perfThread.quitSafely(); perfThread = null; perfHandler = null; }
       if (coopHostBridge != null) {

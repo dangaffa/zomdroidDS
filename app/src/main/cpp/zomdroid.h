@@ -13,6 +13,8 @@ int zomdroid_init();
 
 void zomdroid_surface_deinit();
 void zomdroid_surface_init(ANativeWindow* wnd, int width, int height);
+void zomdroid_bottom_surface_deinit();
+void zomdroid_bottom_surface_init(ANativeWindow* wnd, int width, int height);
 
 void zomdroid_event_keyboard(int key, bool is_pressed);
 void zomdroid_event_mouse_button(int button, bool is_pressed);

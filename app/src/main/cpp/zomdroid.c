@@ -34,6 +34,8 @@ const char* g_zomdroid_vulkan_driver_name;
 
 ZomdroidSurface g_zomdroid_surface = {.mutex = PTHREAD_MUTEX_INITIALIZER,
                                       .ready_for_destroy_cond = PTHREAD_COND_INITIALIZER};
+ZomdroidSurface g_zomdroid_bottom_surface = {.mutex = PTHREAD_MUTEX_INITIALIZER,
+                                             .ready_for_destroy_cond = PTHREAD_COND_INITIALIZER};
 
 Renderer g_zomdroid_renderer;
 
@@ -644,6 +646,37 @@ void zomdroid_surface_init(ANativeWindow* wnd, int width, int height) {
         g_zomdroid_surface.is_dirty = true;
 
     pthread_mutex_unlock(&g_zomdroid_surface.mutex);
+}
+
+/* Dual-screen bottom surface. Same handshake as the main surface, except the window reference
+ * taken by ANativeWindow_fromSurface() is released once GLFW has let go of it. */
+void zomdroid_bottom_surface_deinit() {
+    ZomdroidSurface* s = &g_zomdroid_bottom_surface;
+    pthread_mutex_lock(&s->mutex);
+    ANativeWindow* old = s->native_window;
+    s->native_window = NULL;
+    s->width = 0;
+    s->height = 0;
+    if (s->is_used) {
+        s->is_dirty = true;
+        pthread_cond_wait(&s->ready_for_destroy_cond, &s->mutex);
+    }
+    pthread_mutex_unlock(&s->mutex);
+    if (old != NULL) ANativeWindow_release(old);
+}
+
+void zomdroid_bottom_surface_init(ANativeWindow* wnd, int width, int height) {
+    ZomdroidSurface* s = &g_zomdroid_bottom_surface;
+    pthread_mutex_lock(&s->mutex);
+    ANativeWindow* old = s->native_window;
+    s->native_window = wnd;
+    s->width = width;
+    s->height = height;
+    if (s->is_used)
+        s->is_dirty = true;
+    pthread_mutex_unlock(&s->mutex);
+    // surfaceChanged() hands the same window again on resize; drop the extra reference.
+    if (old != NULL && old == wnd) ANativeWindow_release(old);
 }
 
 // Thread-safe lock-free enqueue using compare-exchange to prevent two threads

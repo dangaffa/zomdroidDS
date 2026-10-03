@@ -133,6 +133,9 @@ typedef struct {
     pthread_cond_t ready_for_destroy_cond;
 } ZomdroidSurface;
 extern ZomdroidSurface g_zomdroid_surface;
+/** Dual-screen: surface on the secondary (bottom) display, same handshake as g_zomdroid_surface.
+ * native_window stays NULL when there is no bottom screen. */
+extern ZomdroidSurface g_zomdroid_bottom_surface;
 
 /** Frames the game has presented (glfwSwapBuffers), for the in-game FPS display. */
 extern atomic_ullong g_zomdroid_presented_frames;

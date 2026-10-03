@@ -1512,7 +1512,7 @@ public class InstallerService extends Service implements TaskProgressListener {
                 String modsPath = gameInstance.getHomePath() + "/Zomboid/mods";
                 new File(modsPath).mkdirs();
                 String instanceNameLower = gameInstance.getName().toLowerCase();
-                String inceptionRelPath = "data/user/0/com.zomdroid/files/instances/"
+                String inceptionRelPath = "data/user/0/" + getPackageName() + "/files/instances/"
                         + instanceNameLower + "/zomboid/mods";
                 File inceptionDir = new File(modsPath, inceptionRelPath);
 

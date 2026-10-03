@@ -63,7 +63,7 @@
         </service>
         <provider
             android:name=".AppStorageProvider"
-            android:authorities="com.zomdroid.STORAGE_PROVIDER_AUTHORITY"
+            android:authorities="${applicationId}.STORAGE_PROVIDER_AUTHORITY"
             android:exported="true"
             android:grantUriPermissions="true"
             android:permission="android.permission.MANAGE_DOCUMENTS">
@@ -74,7 +74,7 @@
         <!-- Exposes the cache-dir bug-report zip as a content:// Uri for the email ACTION_SEND. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.zomdroid.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

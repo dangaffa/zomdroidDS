@@ -373,7 +373,7 @@ public class LauncherActivity extends AppCompatActivity {
                     }
                     if (zip.length() > 0)
                         attach = androidx.core.content.FileProvider.getUriForFile(
-                                this, "com.zomdroid.fileprovider", zip);
+                                this, getPackageName() + ".fileprovider", zip);
                 }
             } catch (Throwable t) { attach = null; } // no logs → still send the text report
             final Uri fAttach = attach;

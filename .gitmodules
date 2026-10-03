@@ -3,4 +3,5 @@
 	url = https://github.com/udarmolota/zomdroid-box64.git
 [submodule "app/src/main/cpp/glfw"]
 	path = app/src/main/cpp/glfw
-	url = https://github.com/udarmolota/zomdroid-glfw.git
+	url = https://github.com/dangaffa/zomdroidDS-glfw.git
+	branch = dual-screen

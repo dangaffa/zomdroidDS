@@ -104,6 +104,8 @@ android {
         }
         debug {
             isDebuggable = true
+            // Separate app ID so a debug install never replaces (and wipes) a release com.zomdroid.
+            applicationIdSuffix = ".ds"
         }
     }
     compileOptions {

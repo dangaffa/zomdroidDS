@@ -4,7 +4,8 @@ set -e
 source "$(dirname "$0")/env.sh"
 "$ADB" shell am force-stop "$PKG"
 if [ -n "$1" ]; then
-    "$ADB" shell am start -n "$PKG/com.zomdroid.DebugLaunchActivity" --es instance "$1"
+    # adb shell re-splits on spaces, so quote the name for the device-side shell.
+    "$ADB" shell "am start -n $PKG/com.zomdroid.DebugLaunchActivity --es instance '$1'"
 else
     "$ADB" shell am start -n "$PKG/com.zomdroid.DebugLaunchActivity"
 fi

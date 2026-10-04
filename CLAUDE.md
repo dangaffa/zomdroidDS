@@ -174,10 +174,20 @@ Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|so
    - The gesture pill on the bottom screen is the Thor's own navigation hint; it shows on the top screen too, even in immersive mode, so it isn't ours to hide. Making the bottom window focusable so it could hide its bars was tried and reverted: it moves key focus to the bottom display whenever it's touched.
 5. **Menus on the bottom by default.** Lua layout manager (places windows in the right strip)
    - Started (2026-10-03): `42/media/lua/client/DieSurviving/DS_Inventory.lua` puts player 0's inventory and loot windows side by side in the bottom strip, pinned open (vanilla mouse mode collapses them to a hover-to-open title bar). Java exposes `DieSurviving_worldWidth(canvasWidth)` to Lua (`LuaApi`, ZombieBuddy `@LuaMethod` global). with the exclusion list; decide how context menus behave.
+   - Done (2026-10-03), all in `42/media/lua/client/DieSurviving/`:
+     - `DS_Layout.lua`: shared geometry (`DS.strip()`, `DS.windowArea()` below the HUD rows and the clock/speed-controls corner column, `DS.placeInWindowArea()`).
+     - `DS_HUD.lua`: the `ISEquippedItem` sidebar becomes rows across the top of the bottom screen, wrapping before the corner column (clock + speed controls stay in the bottom screen's top-right). Its `setX/setY` are pinned because `ISPlayerDataObject` repositions it. Debug/ARF buttons (debug mode only) wrap to a second row at render scale 0.6.
+     - `DS_Windows.lua`: every UI frame (`OnPreUIDraw`), top-level windows/dialogs (`ISCollapsableWindow(Joypad)`, `ISModalDialog`, `ISModalRichText`, `ISTextBox`) that show in the world area move into the window area; context menus, tooltips, HUD, inventory pages, radial menus excluded. A window the player drags onto the top screen stays there. Windows too wide for the strip are right-aligned once (the game clamps them to the canvas), e.g. the Survival Guide.
+     - `DS_Inventory.lua`: inventory and loot side by side in the window area, re-placed when the HUD rows change height.
+     - `DS_Map.lua`: the world map fills the bottom screen; world drawing stays on so the top screen keeps showing the world.
+     - `DS_Background.lua`: black backdrop behind all bottom-screen UI; nothing else clears that part of the canvas, so without it old pixels linger.
+     - Verified: HUD buttons open crafting, character info and the map on the bottom screen; top screen shows only the world.
+     - Open issue: at render scale 0.6 the bottom strip is only 744x648 canvas px, below PZ's minimum UI resolution; big windows (Survival Guide, crafting) don't fully fit.
    - Roadmap (user, 2026-10-03):
      - Move the left-side HUD icon column (inventory, health, crafting, and so on: `ISEquippedItem`) to a horizontal row along the top of the bottom screen. Bottom-screen menus get a little less vertical space to make room for it.
      - World context menus (right click / Y on something in the world) stay on the top screen, and must be navigable with the left stick as well as the d-pad, submenus included.
-6. **Polish.** In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
+6. **Polish.**
+   - Chunk-texture seams (black horizontal lines in the world; see Gotchas): dig into `FBORenderChunk` stitching and patch it. In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
 
 Update this list as milestones land, and add notes on anything learned the hard way to "Gotchas" below.
 
@@ -206,3 +216,5 @@ Update this list as milestones land, and add notes on anything learned the hard 
 - "Continue" on the main menu goes to spawn selection when the save's character is dead (`players.db` → `localPlayers.isDead`). That is the game, not us.
 - The game runs in debug mode on this instance (Output Log / Lua console on screen); that is a Zomdroid setting, not ours.
 - **Black horizontal lines in the world (top screen) are not ours.** A/B tested on 2026-10-03 at the same spot: present with dual-screen off (stock layout, mod inert), at render scale 0.6 and 1.0, with `FBORenderChunk.HighResChunkTextures=true` or `DepthTestAll=false` in `debug-options.ini`, and on NG_GL4ES as well as Zink. Gone only with B42's chunk-texture renderer off (`PerformanceSettings.fboRenderChunk=false`, the debug "toggle old renderer"), which draws some things differently (string lights unlit, different wall cutaways). The lines move with the world, so they're seams in the chunk textures. To repeat the test: create an empty `ds-old-renderer` file in the instance home (`files/instances/<name>/`); DieSurviving's `Main` then turns the chunk renderer off at load.
+- `ISUIElement:setX/setY` clamp windows to the canvas using the window's **current** size (`keepOnScreen`). Set width/height before x/y, or a shrinking window gets stuck at its old position.
+- The bottom strip is not cleared by the game between frames (world clears only its viewport); `DS_Background.lua` paints it black behind the UI.

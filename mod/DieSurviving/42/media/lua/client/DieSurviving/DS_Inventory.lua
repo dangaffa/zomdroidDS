@@ -1,36 +1,42 @@
--- Die Surviving: the player's inventory and loot windows live on the bottom screen.
---
--- The game canvas is the top screen (world) on the left plus the bottom screen to its right.
--- DieSurviving_worldWidth() (Java side) says where the world region ends; everything right of it
--- is the bottom screen. The two windows split that strip and stay open: the vanilla mouse mode
--- collapses them to a title bar that expands on hover, which a touch screen can't do.
+-- Die Surviving: the player's inventory and loot windows live on the bottom screen, side by side
+-- below the HUD row. They stay open: the vanilla mouse mode collapses them to a title bar that
+-- expands on hover, which a touch screen can't do.
 
 require "ISUI/PlayerData/ISPlayerDataObject"
+require "DieSurviving/DS_Layout"
 
-if not DieSurviving_worldWidth then return end
-
-local function bottomStrip()
-    local canvasW = getCore():getScreenWidth()
-    local worldW = DieSurviving_worldWidth(canvasW)
-    if not worldW or worldW <= 0 or worldW >= canvasW then return nil end
-    return worldW, canvasW - worldW, getCore():getScreenHeight()
-end
+local DS = DieSurviving
 
 local original_placeInventoryScreens = ISPlayerDataObject.placeInventoryScreens
 function ISPlayerDataObject:placeInventoryScreens(playerID, totalPlayers, mouse)
     original_placeInventoryScreens(self, playerID, totalPlayers, mouse)
-    if playerID ~= 0 or totalPlayers > 1 then return end
-    local x, w, h = bottomStrip()
-    if not x then return end
+    if totalPlayers > 1 or not DS.active(playerID) then return end
+    local x, y, w, h = DS.windowArea()
     local half = math.floor(w / 2)
-    self.x1, self.y1, self.w1, self.h1 = x, 0, half, h
-    self.x2, self.y2, self.w2, self.h2 = x + half, 0, w - half, h
+    self.x1, self.y1, self.w1, self.h1 = x, y, half, h
+    self.x2, self.y2, self.w2, self.h2 = x + half, y, w - half, h
+end
+
+--- Put player 0's inventory and loot pages side by side in the window area. Called again when the
+--- HUD rows change height.
+function DS.placeInventoryPages()
+    local data = getPlayerData and getPlayerData(0)
+    if not data or not data.playerInventory or not DS.active(0) then return end
+    local x, y, w, h = DS.windowArea()
+    local half = math.floor(w / 2)
+    for i, page in ipairs({ data.playerInventory, data.lootInventory }) do
+        -- Size first: setX/setY keep a window on screen using its current size.
+        page:setWidth(i == 1 and half or w - half)
+        page:setHeight(h)
+        page:setX(i == 1 and x or x + half)
+        page:setY(y)
+    end
 end
 
 local original_createInventoryInterface = ISPlayerDataObject.createInventoryInterface
 function ISPlayerDataObject:createInventoryInterface()
     original_createInventoryInterface(self)
-    if self.id ~= 0 or getNumActivePlayers() > 1 or not bottomStrip() then return end
+    if not DS.active(self.id) then return end
     for _, page in ipairs({ self.playerInventory, self.lootInventory }) do
         page.isCollapsed = false
         page:clearMaxDrawHeight()

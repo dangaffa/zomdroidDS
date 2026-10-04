@@ -101,6 +101,7 @@ Helper scripts live in `tools/ds/` (run with Git Bash; settings in `env.sh`):
 | `tap.sh top/bottom X Y` | tap a screen (held 150 ms; a plain `input tap` is shorter than a game frame and gets lost) |
 | `build_mod.sh` | compile `mod/DieSurviving` with JDK 25 into `42/media/java/DieSurviving.jar` |
 | `push_mod.sh` | copy `mod/DieSurviving` into the instance's `Zomboid/mods` |
+| `pref.sh bool\|float NAME VALUE` | set a launcher shared pref (stops the app first), e.g. `dual_screen_enabled`, `inst:Project Zomboid:render_scale`, `inst:Project Zomboid:renderer` (string prefs: edit by hand) |
 
 Raw equivalents:
 
@@ -204,3 +205,4 @@ Update this list as milestones land, and add notes on anything learned the hard 
 - The game classes are Java 25 class files: compiling against them needs JDK 25, not the JDK 17 used for the app.
 - "Continue" on the main menu goes to spawn selection when the save's character is dead (`players.db` → `localPlayers.isDead`). That is the game, not us.
 - The game runs in debug mode on this instance (Output Log / Lua console on screen); that is a Zomdroid setting, not ours.
+- **Black horizontal lines in the world (top screen) are not ours.** A/B tested on 2026-10-03 at the same spot: present with dual-screen off (stock layout, mod inert), at render scale 0.6 and 1.0, with `FBORenderChunk.HighResChunkTextures=true` or `DepthTestAll=false` in `debug-options.ini`, and on NG_GL4ES as well as Zink. Gone only with B42's chunk-texture renderer off (`PerformanceSettings.fboRenderChunk=false`, the debug "toggle old renderer"), which draws some things differently (string lights unlit, different wall cutaways). The lines move with the world, so they're seams in the chunk textures. To repeat the test: create an empty `ds-old-renderer` file in the instance home (`files/instances/<name>/`); DieSurviving's `Main` then turns the chunk renderer off at load.

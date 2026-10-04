@@ -5,6 +5,12 @@ public class Main {
         System.out.println("[DieSurviving] loaded, dual screen " + (DualScreen.ENABLED
                 ? "on, world fraction " + DualScreen.WORLD_FRACTION
                 : "off"));
+        // Debug aid: an empty file named ds-old-renderer in the instance home turns off B42's chunk
+        // texture renderer (same as the debug "toggle old renderer" key), for renderer A/B tests.
+        if (new java.io.File(System.getProperty("user.home"), "ds-old-renderer").exists()) {
+            zombie.core.PerformanceSettings.fboRenderChunk = false;
+            System.out.println("[DieSurviving] chunk texture renderer OFF (ds-old-renderer)");
+        }
         // Debug aid: add -Dzomdroid.ds.debugMouse=true to the JVM args to log mouse state changes.
         if (Boolean.getBoolean("zomdroid.ds.debugMouse")) {
             Thread t = new Thread(() -> {

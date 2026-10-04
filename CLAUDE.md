@@ -156,6 +156,8 @@ ZombieBuddy 3.0.0-beta1 is installed on the instance from `../zomboidDS/tools/Zo
 
 ## Milestones
 
+**Guiding principle (from the user, 2026-10-03): play it like a real DS game.** The top screen is the world, driven by the gamepad; the bottom screen is the touch menus. Minimise switching between touching one screen and the other: anything the player reaches for with touch belongs on the bottom screen, and anything that comes up while playing with the gamepad stays on the top and is fully usable with the gamepad.
+
 Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|solid|off` (read when the bottom surface is created, so relaunch after changing it). The native side logs `<fps> fps, bottom screen <ms> ms/frame on render thread` every 10 s under the `ZomdroidDS` tag. Disable dual-screen entirely with the shared pref `dual_screen_enabled=false` (`BottomScreen.PREF_ENABLED`).
 
 0. **Plumbing.** Separate debug app ID; debug auto-launch; record display IDs and the primary renderer in this file; scripts for build, install, logs, screenshots, mod push.
@@ -171,6 +173,9 @@ Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|so
    - The gesture pill on the bottom screen is the Thor's own navigation hint; it shows on the top screen too, even in immersive mode, so it isn't ours to hide. Making the bottom window focusable so it could hide its bars was tried and reverted: it moves key focus to the bottom display whenever it's touched.
 5. **Menus on the bottom by default.** Lua layout manager (places windows in the right strip)
    - Started (2026-10-03): `42/media/lua/client/DieSurviving/DS_Inventory.lua` puts player 0's inventory and loot windows side by side in the bottom strip, pinned open (vanilla mouse mode collapses them to a hover-to-open title bar). Java exposes `DieSurviving_worldWidth(canvasWidth)` to Lua (`LuaApi`, ZombieBuddy `@LuaMethod` global). with the exclusion list; decide how context menus behave.
+   - Roadmap (user, 2026-10-03):
+     - Move the left-side HUD icon column (inventory, health, crafting, and so on: `ISEquippedItem`) to a horizontal row along the top of the bottom screen. Bottom-screen menus get a little less vertical space to make room for it.
+     - World context menus (right click / Y on something in the world) stay on the top screen, and must be navigable with the left stick as well as the d-pad, submenus included.
 6. **Polish.** In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
 
 Update this list as milestones land, and add notes on anything learned the hard way to "Gotchas" below.

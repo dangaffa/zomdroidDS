@@ -41,6 +41,17 @@ local function layout(self)
     end
 end
 
+-- Sub-screens build their children in create(), which MainScreen:instantiate calls after sizing
+-- them; most never re-layout afterwards. So they must have their bottom-screen size before the
+-- first create() call, which is always mainOptions:create().
+require "OptionScreens/MainOptions"
+local original_mainOptionsCreate = MainOptions.create
+function MainOptions:create()
+    local parent = self.parent
+    if parent and parent.mainOptions == self then layout(parent) end
+    return original_mainOptionsCreate(self)
+end
+
 local original_instantiate = MainScreen.instantiate
 function MainScreen:instantiate()
     original_instantiate(self)

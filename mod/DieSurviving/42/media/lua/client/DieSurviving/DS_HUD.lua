@@ -1,5 +1,6 @@
--- Die Surviving: the HUD icon column (hands, inventory, health, crafting, map, ...) becomes a row
--- along the top of the bottom screen, where the thumbs already are for the menus it opens.
+-- Die Surviving: the HUD icon column (hands, inventory, health, crafting, map, ...) becomes rows in
+-- the bottom screen's HUD band (bottom edge by default; see DS_Layout), left of the clock and speed
+-- controls, where the thumbs already are for the menus it opens.
 
 require "ISUI/ISEquippedItem"
 require "DieSurviving/DS_Layout"
@@ -17,9 +18,9 @@ end
 
 local function layoutAsRows(self)
     local _, _, stripW = DS.strip()
-    local cornerW = DS.cornerColumn()
+    local cornerW, cornerH = DS.cornerColumn()
     local maxW = stripW - 2 * DS.MARGIN - (cornerW > 0 and cornerW + DS.MARGIN or 0)
-    self.dsCornerW = cornerW
+    self.dsCornerW, self.dsCornerH = cornerW, cornerH
 
     -- Row items in their original top-to-bottom order. The movables tooltip is a child too, but it
     -- is a popup, not an icon.
@@ -48,18 +49,18 @@ local function layoutAsRows(self)
     self:setHeight(y + rowH)
     self:setX(0) -- see setX/setY below
     self:setY(0)
-    -- The window area starts below the rows; move the inventory pages down with it.
-    DS.hudRowsBottom = DS.MARGIN + self:getHeight()
+    -- The window area is what the HUD band leaves; move the inventory pages with it.
+    DS.hudBlockHeight = self:getHeight()
     if DS.placeInventoryPages then DS.placeInventoryPages() end
 
     -- The health button wobbles when hurt by having its x reset every frame; remember its slot.
     self.dsHealthX = self.healthBtn and self.healthBtn:getX() or 0
 
-    -- The movables popup opens next to its button; put it under the button instead.
+    -- The movables popup opens next to its button; put it above or below the button instead.
     for _, child in pairs(self:getChildren()) do
         if child.Type == "ISMoveablesIconToolTip" and self.movableBtn then
             child:setX(self.movableBtn:getX())
-            child:setY(self.movableBtn:getBottom())
+            child:setY(DS.HUD_AT_BOTTOM and self.movableBtn:getY() - child:getHeight() or self.movableBtn:getBottom())
         end
     end
 
@@ -84,14 +85,14 @@ function ISEquippedItem:initialise()
 end
 
 -- ISPlayerDataObject positions the sidebar at the top-left of the player's screen after creating
--- it (and on resolution changes). In row mode it always sits at the top of the bottom screen.
+-- it (and on resolution changes). In row mode it always sits in the HUD band.
 function ISEquippedItem:setX(x)
     if self.dsRow then x = DS.strip() + DS.MARGIN end
     ISUIElement.setX(self, x)
 end
 
 function ISEquippedItem:setY(y)
-    if self.dsRow then y = DS.MARGIN end
+    if self.dsRow then y = DS.hudBlockY(self:getHeight()) end
     ISUIElement.setY(self, y)
 end
 
@@ -99,10 +100,16 @@ end
 local original_prerender = ISEquippedItem.prerender
 function ISEquippedItem:prerender()
     original_prerender(self)
-    if self.dsRow and DS.cornerColumn() ~= self.dsCornerW then
-        layoutAsRows(self)
+    if self.dsRow then
+        local w, h = DS.cornerColumn()
+        if w ~= self.dsCornerW or h ~= self.dsCornerH then layoutAsRows(self) end
     end
 end
+
+-- The game puts the clock and speed controls back in the canvas's top-right corner every frame.
+Events.OnPreUIDraw.Add(function()
+    if DS.active(0) then DS.placeCornerColumn() end
+end)
 
 local original_render = ISEquippedItem.render
 function ISEquippedItem:render()

@@ -4,7 +4,8 @@
 -- is driven by d-pad presses (ISContextMenu:onJoypadDirUp/Down/Left/Right). The left stick only
 -- moves the character, and is ignored while a menu has focus. Here it is turned into the same
 -- direction steps: one when pushed, then repeating while held, like a held key. Submenus get
--- focus when entered, so they follow automatically.
+-- focus when entered, so they follow automatically. While a menu has focus the character's stick
+-- movement is switched off (setIgnoreInputsForDirection), or it would walk away while browsing.
 
 require "ISUI/ISContextMenu"
 
@@ -13,6 +14,7 @@ local FIRST_REPEAT_MS = 300 -- held: first repeat after this long
 local REPEAT_MS = 120       -- then every this long
 
 local held = {} -- per joypad: { dir = "Up"|..., nextMs = time of next repeat }
+local frozen = {} -- player numbers whose movement this script switched off
 
 local function isContextMenu(element)
     local mt = getmetatable(element)
@@ -38,8 +40,19 @@ local function onPreUIDraw()
     for _, joypadData in pairs(JoypadState.players) do
         local focus = joypadData and joypadData.focus
         local id = joypadData and joypadData.id
+        local player = joypadData and joypadData.player
+        local inMenu = focus ~= nil and focus:isVisible() and isContextMenu(focus)
+        if player ~= nil then
+            if inMenu and not frozen[player] then
+                setIgnoreInputsForDirection(player, true)
+                frozen[player] = true
+            elseif not inMenu and frozen[player] then
+                setIgnoreInputsForDirection(player, false)
+                frozen[player] = nil
+            end
+        end
         if id ~= nil then
-            local dir = focus and focus:isVisible() and isContextMenu(focus) and stickDirection(id) or nil
+            local dir = inMenu and stickDirection(id) or nil
             local state = held[id]
             if not dir then
                 held[id] = nil

@@ -248,7 +248,7 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
             int extra = bottomScreen.extraCanvasWidth(topBounds.height());
             bottomScreen.setCanvasGeometry(topBounds.width(), extra, topBounds.height(),
                     instanceSettings.getRenderScale());
-            bottomScreen.start();
+            // Shown in onStart(), hidden in onStop(): the bottom screen goes with the game.
             GameLauncher.dualScreenWorldFraction = extra > 0
                     ? (float) topBounds.width() / (topBounds.width() + extra) : 0f;
             if (extra > 0) {
@@ -688,6 +688,20 @@ public class GameActivity extends AppCompatActivity implements GamepadManager.Ga
         binding.inputControlsV.setVisibility(View.VISIBLE);
         binding.inputControlsV.applyInputMode(InputControlsView.InputMode.ALL);
       }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (bottomScreen != null) bottomScreen.start();
+    }
+
+    @Override
+    protected void onStop() {
+        // Leaving the game (home, recents) must clear the bottom screen too, or the bottom display
+        // keeps showing the game over the launcher.
+        if (bottomScreen != null) bottomScreen.stop();
+        super.onStop();
     }
 
     @Override

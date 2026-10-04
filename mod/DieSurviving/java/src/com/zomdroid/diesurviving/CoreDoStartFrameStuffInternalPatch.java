@@ -11,14 +11,14 @@ public class CoreDoStartFrameStuffInternalPatch {
     @Patch.OnEnter
     public static void enter(@Patch.Argument(3) int player) {
         if (DualScreen.ENABLED && player != -1) {
-            DualScreen.IN_WORLD_FRAME.get()[0] = 1;
+            DualScreen.enterWorldScope();
         }
     }
 
     @Patch.OnExit
     public static void exit(@Patch.Argument(3) int player) {
         if (DualScreen.ENABLED && player != -1) {
-            DualScreen.IN_WORLD_FRAME.get()[0] = 0;
+            DualScreen.exitWorldScope();
         }
     }
 }

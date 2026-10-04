@@ -186,6 +186,7 @@ Bottom-screen debug switch: `adb shell setprop debug.zomdroid.ds.bottom split|so
    - Roadmap (user, 2026-10-03):
      - Move the left-side HUD icon column (inventory, health, crafting, and so on: `ISEquippedItem`) to a horizontal row along the top of the bottom screen. Bottom-screen menus get a little less vertical space to make room for it.
      - World context menus (right click / Y on something in the world) stay on the top screen, and must be navigable with the left stick as well as the d-pad, submenus included.
+       - Implemented (2026-10-03, `DS_ContextStick.lua`): while a context menu has a player's joypad focus, the left stick sends the same `onJoypadDir*` steps as the d-pad (push = one step, held = repeat after 300 ms, every 120 ms). Untested on device: adb can't inject stick axes, needs the user.
 6. **Polish.**
    - Chunk-texture seams (black horizontal lines in the world; see Gotchas): dig into `FBORenderChunk` stitching and patch it. In-launcher toggle for dual-screen mode; graceful fallback to normal mode when no secondary display exists or it's turned off; the other renderer paths.
 

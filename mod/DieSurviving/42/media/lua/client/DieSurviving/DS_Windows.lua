@@ -47,9 +47,6 @@ local function isWindow(element)
     return false
 end
 
-local function inGame()
-    return getSpecificPlayer and getSpecificPlayer(0) ~= nil
-end
 
 local function update(window, worldRight)
     if not window:isVisible() then
@@ -73,7 +70,7 @@ local function update(window, worldRight)
 end
 
 local function onPreUIDraw()
-    if not inGame() or not DS.active(0) then return end
+    if not DS.active(0) then return end
     local worldRight = DS.strip()
     local ui = UIManager.getUI()
     for i = 0, ui:size() - 1 do

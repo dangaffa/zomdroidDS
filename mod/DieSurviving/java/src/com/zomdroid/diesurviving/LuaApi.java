@@ -12,4 +12,18 @@ public class LuaApi {
     public static double worldWidth(double canvasWidth) {
         return DualScreen.ENABLED ? DualScreen.worldWidth((int) canvasWidth) : 0;
     }
+
+    /**
+     * Run Lua drawing code in a world scope: getCore():getScreenWidth() reports the top screen's
+     * width until the matching DieSurviving_exitWorldScope(). Always pair them (use pcall).
+     */
+    @LuaMethod(name = "DieSurviving_enterWorldScope", global = true)
+    public static void enterWorldScope() {
+        if (DualScreen.ENABLED) DualScreen.enterWorldScope();
+    }
+
+    @LuaMethod(name = "DieSurviving_exitWorldScope", global = true)
+    public static void exitWorldScope() {
+        if (DualScreen.ENABLED) DualScreen.exitWorldScope();
+    }
 }
